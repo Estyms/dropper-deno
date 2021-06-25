@@ -4,7 +4,7 @@ function hasJsonStructure(str) {
         const result = JSON.parse(str);
         const type = Object.prototype.toString.call(result);
         return type === '[object Object]' || type === '[object Array]';
-    } catch (err) {
+    } catch (_) {
         return false;
     }
 }
@@ -18,7 +18,7 @@ function connectWebSocket(endpoint, id) {
         else if (protocol === 'ws:' || protocol === 'wss:') p = protocol + '//';
         else throw new Error("ws: unsupported protocol: " + url.protocol);
         const uri = `${p + hostname}:${port + pathname}?id=${id}`;
-        let socket = new WebSocket(uri);
+        const socket = new WebSocket(uri);
         socket.onopen = ()=>{
             resolve(socket);
         };
@@ -350,7 +350,7 @@ new Map([
 
 function thenableReject(error) {
     return {
-        then: (resolve, reject)=>reject(error)
+        then: (_, reject)=>reject(error)
     };
 }
 
@@ -411,12 +411,12 @@ function websocketEvents(websocket, { emitOpen =false  } = {
         next,
         throw: async (value)=>{
             pushError(value);
-            if (websocket.readyState === WebSocket.OPEN) websocket.close();
+            if (websocket.readyState === WebSocket.OPEN) await websocket.close();
             return next();
         },
         return: async ()=>{
             close();
-            if (websocket.readyState === WebSocket.OPEN) websocket.close();
+            if (websocket.readyState === WebSocket.OPEN) await websocket.close();
             return next();
         }
     };
@@ -517,7 +517,6 @@ function validateIntegerRange(value, name, min = -2147483648, max = 2147483647) 
 }
 
 // Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
-// deno-lint-ignore no-explicit-any
 function createIterResult(value, done) {
     return {
         value,
@@ -569,7 +568,7 @@ let defaultMaxListeners = 10;
    * eventName, in the order they were registered, passing the supplied
    * arguments to each.
    * @return true if the event had listeners, false otherwise
-   */ // deno-lint-ignore no-explicit-any
+   */ 
     emit(eventName, ...args) {
         if (this._events.has(eventName)) {
             if (eventName === "error" && this._events.get(EventEmitter.errorMonitor)) {
@@ -629,7 +628,6 @@ let defaultMaxListeners = 10;
     unwrapListeners(arr) {
         const unwrappedListeners = new Array(arr.length);
         for(let i = 0; i < arr.length; i++){
-            // deno-lint-ignore no-explicit-any
             unwrappedListeners[i] = arr[i]["listener"] || arr[i];
         }
         return unwrappedListeners;
@@ -665,7 +663,7 @@ let defaultMaxListeners = 10;
     }
     // Wrapped function that calls EventEmitter.removeListener(eventName, self) on execution.
     onceWrap(eventName, listener) {
-        const wrapper = function(// deno-lint-ignore no-explicit-any
+        const wrapper = function(
         ...args) {
             this.context.removeListener(this.eventName, this.rawListener);
             this.listener.apply(this.context, args);
@@ -780,7 +778,6 @@ let defaultMaxListeners = 10;
                 });
                 return;
             } else if (emitter instanceof EventEmitter) {
-                // deno-lint-ignore no-explicit-any
                 const eventListener = (...args)=>{
                     if (errorListener !== undefined) {
                         emitter.removeListener("error", errorListener);
@@ -795,7 +792,6 @@ let defaultMaxListeners = 10;
                 // memory or file descriptor leaks, which is something
                 // we should avoid.
                 if (name !== "error") {
-                    // deno-lint-ignore no-explicit-any
                     errorListener = (err)=>{
                         emitter.removeListener(name, eventListener);
                         reject(err);
@@ -813,17 +809,15 @@ let defaultMaxListeners = 10;
    * loop. The value returned by each iteration is an array composed of the
    * emitted event arguments.
    */ static on(emitter, event) {
-        // deno-lint-ignore no-explicit-any
         const unconsumedEventValues = [];
-        // deno-lint-ignore no-explicit-any
         const unconsumedPromises = [];
         let error = null;
         let finished = false;
         const iterator = {
-            // deno-lint-ignore no-explicit-any
+            
             next () {
                 // First, we consume all unread events
-                // deno-lint-ignore no-explicit-any
+                
                 const value = unconsumedEventValues.shift();
                 if (value) {
                     return Promise.resolve(createIterResult(value, false));
@@ -849,7 +843,7 @@ let defaultMaxListeners = 10;
                     });
                 });
             },
-            // deno-lint-ignore no-explicit-any
+            
             return () {
                 emitter.removeListener(event, eventHandler);
                 emitter.removeListener("error", errorHandler);
@@ -864,7 +858,7 @@ let defaultMaxListeners = 10;
                 emitter.removeListener(event, eventHandler);
                 emitter.removeListener("error", errorHandler);
             },
-            // deno-lint-ignore no-explicit-any
+            
             [Symbol.asyncIterator] () {
                 return this;
             }
@@ -872,7 +866,7 @@ let defaultMaxListeners = 10;
         emitter.on(event, eventHandler);
         emitter.on("error", errorHandler);
         return iterator;
-        // deno-lint-ignore no-explicit-any
+        
         function eventHandler(...args) {
             const promise = unconsumedPromises.shift();
             if (promise) {
@@ -881,7 +875,7 @@ let defaultMaxListeners = 10;
                 unconsumedEventValues.push(args);
             }
         }
-        // deno-lint-ignore no-explicit-any
+        
         function errorHandler(err) {
             finished = true;
             const toError = unconsumedPromises.shift();
@@ -921,15 +915,15 @@ class Dropper extends EventEmitter {
     }
     // Client API
     async send(evt, data) {
-        let data_push = data ? JSON.stringify({
+        const dataPush = data ? JSON.stringify({
             evt,
             data
         }) : JSON.stringify(evt);
-        /* @ts-ignore */ if (this._socket !== null || !this._socket?.isClosed) this._socket.send(data_push);
+        if (this._socket !== null && !this._socket.CLOSED) await this._socket.send(dataPush);
     }
     async broadcast(evt, data) {
         if (this._socket !== null) {
-            let data_push = data ? {
+            const dataPush = data ? {
                 evt,
                 data,
                 client: this.uuid
@@ -938,20 +932,20 @@ class Dropper extends EventEmitter {
                 data: evt,
                 client: this.uuid
             };
-            let broadcast = JSON.stringify({
+            const broadcast = JSON.stringify({
                 evt: '_broadcast_',
-                data: data_push
+                data: dataPush
             });
-            /* @ts-ignore */ if (this._socket !== null || !this._socket?.isClosed) await this._socket.send(broadcast);
+            /* @ts-ignore */ if (this._socket !== null || !this._socket.CLOSED) await this._socket.send(broadcast);
         }
     }
     async close(code = 1005, reason = "") {
-        /* @ts-ignore */ if (this._socket !== null || !this._socket?.isClosed) {
+        /* @ts-ignore */ if (this._socket !== null || !this._socket.CLOSED) {
             return await this._socket.close(code, reason);
         }
     }
     async ping(data) {
-        this?._socket?.send(JSON.stringify({
+        await this?._socket?.send(JSON.stringify({
             evt: '_ping_',
             data
         }));
@@ -966,8 +960,8 @@ class Dropper extends EventEmitter {
         for await (const { data: ev  } of websocketEvents(socket)){
             try {
                 if (hasJsonStructure(ev)) {
-                    let { evt , data , client  } = JSON.parse(ev);
-                    /* @ts-ignore */ if (!this?._socket?.isClosed) this._socket?.send(JSON.stringify({
+                    const { evt , data , client  } = JSON.parse(ev);
+                    if (this.socket !== null && !this ._socket.CLOSED) this._socket.send(JSON.stringify({
                         evt: '_pong_',
                         data
                     }));
