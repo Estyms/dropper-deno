@@ -31,7 +31,7 @@ class Dropper extends EventEmitter {
       connectWebSocket(this.uri, this.uuid).then((socket:WebSocket) => {
         this._socket = socket;
         this.initClient(this._socket);
-      }).catch((err:any) => {
+      }).catch((err:Error) => {
         this.emit("error", err);
       });
     } else {
@@ -44,22 +44,20 @@ class Dropper extends EventEmitter {
   // Client API
 
   public async send(evt: string | Uint8Array | object, data?: string | Uint8Array | object): Promise<void> {
-    let data_push: string = data ? JSON.stringify({ evt, data }) : JSON.stringify(evt);    
-    /* @ts-ignore */
-    if (this._socket !== null || !this._socket?.isCosed) await this._socket?.send(data_push)
+    const dataPush: string = data ? JSON.stringify({ evt, data }) : JSON.stringify(evt);    
+    if (this._socket !== null && !this._socket.CLOSED) await this._socket?.send(dataPush)
   }
 
   public async broadcast(evt: string | Uint8Array | object, data?: string | Uint8Array | object): Promise<void> {    
-    /* @ts-ignore */ 
-    if (this._socket !== null || !this._socket?.isClosed ) {
-      let data_push: object = data ? { evt, data, client: this.uuid }: { evt: 'message', data: evt, client: this.uuid };
-      let broadcast: string = JSON.stringify({evt: '_broadcast_', data: data_push})
+    if (this._socket !== null && !this._socket.CLOSED ) {
+      const dataPush: object = data ? { evt, data, client: this.uuid }: { evt: 'message', data: evt, client: this.uuid };
+      const broadcast: string = JSON.stringify({evt: '_broadcast_', data: dataPush})
       /* @ts-ignore */ 
-    if (this._socket !== null || !this._socket?.isClosed ) await this._socket?.send(broadcast)
+    if (this._socket !== null && !this._socket.CLOSED ) await this._socket?.send(broadcast)
     }
   }
 
-  public async close(code: number = 1005, reason: string = ""): Promise<void> {
+  public async close(code = 1005, reason = ""): Promise<void> {
     /* @ts-ignore */ 
     if (this._socket !== null || !this._socket?.isClosed ) {
       return await this._socket?.close(code, reason)
@@ -67,7 +65,7 @@ class Dropper extends EventEmitter {
   }
 
   public async ping(data?: string) {
-    this?._socket?.send(JSON.stringify({ evt: '_ping_', data}))
+    await this?._socket?.send(JSON.stringify({ evt: '_ping_', data}))
   }
 
   // Client side handler
@@ -105,7 +103,7 @@ class Dropper extends EventEmitter {
       try {
         if (typeof ev === "string") {
           if (hasJsonStructure(ev)) {
-            let { evt, data } = JSON.parse(ev);
+            const { evt, data } = JSON.parse(ev);
             /* @ts-ignore */
             if (evt == '_ping_')  if (!this._socket?.isClosed) this._socket?.send(JSON.stringify({ evt: '_pong_', data}))
             if (evt !== '_ping_' && evt !== '_pong_') this.emit("_all_", ev);
@@ -135,7 +133,7 @@ class Dropper extends EventEmitter {
 }
 
  class Server extends EventEmitter {
-   private willClose: boolean = false;
+   private willClose = false;
    public clients: Map<string, Dropper> = new Map();
    private user_agent : any = '';
    constructor(public options?: any) {
@@ -153,13 +151,12 @@ class Dropper extends EventEmitter {
    // Server API
 
    public async send(evt: string | Uint8Array | object, data ? : string | Uint8Array | object): Promise < void > {
-     let data_push: string = data ? JSON.stringify({
+     const dataPush: string = data ? JSON.stringify({
        evt,
        data
      }) : JSON.stringify(evt);
-     this.clients.forEach((client) => {
-       // @ts-ignore 
-       if (!client?._socket?.isClosed) client?._socket?.send(data_push)
+     await this.clients.forEach((client) => {
+       if (!client?._socket?.CLOSED) client?._socket?.send(dataPush)
      })
    }
 
@@ -180,7 +177,7 @@ class Dropper extends EventEmitter {
       url
     } = req;
     this.user_agent = headers.get('user-agent');  
-    acceptWebSocket({
+    await acceptWebSocket({
         conn,
         headers,
         bufReader: req.r,
@@ -192,17 +189,16 @@ class Dropper extends EventEmitter {
           const uuid = client.uuid;
           this.clients.set(uuid, client);
           // Connection checker
-          let tm: any;
+          let tm: number;
           const ping = () => {              
-             // @ts-ignore
-             if (!client?._socket?.isClosed) client.ping()
+             if (client != null && !client?._socket?.CLOSED) client.ping()
              tm = setTimeout( () => {
-               clearInterval(int);
+               clearInterval(int || 0);
                this.emit("disconnection", 1001, 'Client is leaving', client)
                this.clients.delete(uuid);
                this.clients.forEach(async (c) => {
-                 let send_disconnection = JSON.stringify({evt: "disconnection", data: uuid})
-                 await c?._socket?.send(send_disconnection)
+                 const sendDisconnection = JSON.stringify({evt: "disconnection", data: uuid})
+                 await c?._socket?.send(sendDisconnection)
                })
                client = null;
              }, 1000);
@@ -210,20 +206,19 @@ class Dropper extends EventEmitter {
 
           // Interval initialization
 
-          let userCheck: RegExp = new RegExp('Deno', 'i');
+          const userCheck = new RegExp('Deno', 'i');
 
-          let int: any = userCheck.test(this.user_agent) ? setInterval(ping, this.options.interval) : null;
+          const int = userCheck.test(this.user_agent) ? setInterval(ping, this.options.interval) : null;
           client.on('_pong_', () => {               
            clearTimeout(tm);
           })
           client.on("close", (code, reason) => {
-            clearInterval(int);
+            clearInterval(int || 0);
             this.emit("disconnection", code, reason || 'Client is leaving', client)
             this.clients.delete(uuid);
             this.clients.forEach(async (c) => {
-             let send_disconnection = JSON.stringify({evt: "disconnection", data: uuid})
-             // @ts-ignore 
-             if (!c?._socket?.isClosed) await c?._socket?.send(send_disconnection)
+             const sendDisconnection = JSON.stringify({evt: "disconnection", data: uuid})
+             if (!c?._socket?.CLOSED) await c?._socket?.send(sendDisconnection)
             })
             client = null;
           });
@@ -231,18 +226,17 @@ class Dropper extends EventEmitter {
           client.on('_all_', ev => {
            this.emit('_all_', ev);
            if (hasJsonStructure(ev)) {
-             let { evt, data } = JSON.parse(ev);
+             const { evt, data } = JSON.parse(ev);
              this.emit(evt, data)
            } else {
              this.emit('message', ev)
            }
           })
           // Broadcast
-          client.on("_broadcast_", async data => {
-            let data_send = JSON.stringify(data)
+          client.on("_broadcast_", data => {
+            const dataSend = JSON.stringify(data)
             this.clients.forEach(async (c) => {
-              // @ts-ignore 
-              if (!c?._socket?.isClosed) c?._socket?.send(data_send)
+              if (!c?._socket?.CLOSED) await c?._socket?.send(dataSend)
             })
           })
           const allowConnect = this.emit("connection", client, req);

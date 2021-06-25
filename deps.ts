@@ -1,7 +1,7 @@
 export { 
   serve,
   ServerRequest
-} from "https://deno.land/std@0.83.0/http/server.ts";
+} from "https://deno.land/std@0.99.0/http/server.ts";
 export { websocketEvents } from 'https://raw.githubusercontent.com/denyncrawford/websocket-iterator/master/src/websocket-iterator.ts'
 export {
   handshake,
@@ -10,7 +10,12 @@ export {
   isWebSocketCloseEvent,
   isWebSocketPingEvent,
   isWebSocketPongEvent,
-} from "https://deno.land/std@0.83.0/ws/mod.ts";
-export { BufReader, BufWriter } from "https://deno.land/std@0.83.0/io/bufio.ts";
-export { v4 } from "https://deno.land/std@0.83.0/uuid/mod.ts";
-export { EventEmitter } from "https://deno.land/std/node/events.ts";
+} from "https://deno.land/std@0.99.0/ws/mod.ts";
+
+export type {
+  WebSocket as wsWebSocket
+} from "https://deno.land/std@0.99.0/ws/mod.ts";
+
+export { BufReader, BufWriter } from "https://deno.land/std@0.99.0/io/bufio.ts";
+export { v4 } from "https://deno.land/std@0.99.0/uuid/mod.ts";
+export { EventEmitter } from "https://deno.land/std@0.99.0/node/events.ts";

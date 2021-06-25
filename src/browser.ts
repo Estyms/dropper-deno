@@ -32,29 +32,26 @@ export default class Dropper extends EventEmitter {
   // Client API
 
   public async send(evt: string | Uint8Array | object, data?: string | Uint8Array | object): Promise<void> {
-    let data_push: string = data ? JSON.stringify({ evt, data }) : JSON.stringify(evt);   
-    /* @ts-ignore */ 
-    if (this._socket !== null || !this._socket?.isClosed ) this._socket.send(data_push)
+    const dataPush : string = data ? JSON.stringify({ evt, data }) : JSON.stringify(evt);   
+    if (this._socket !== null && !this._socket.CLOSED ) await this._socket.send(dataPush)
   }
 
   public async broadcast(evt: string | Uint8Array | object, data?: string | Uint8Array | object): Promise<void> {    
     if (this._socket !== null) {
-      let data_push: object = data ? { evt, data, client: this.uuid }: { evt: 'message', data: evt, client: this.uuid };
-      let broadcast: string = JSON.stringify({evt: '_broadcast_', data: data_push})
-      /* @ts-ignore */
-      if (this._socket !== null || !this._socket?.isClosed ) await this._socket.send(broadcast)
+      const dataPush : object = data ? { evt, data, client: this.uuid }: { evt: 'message', data: evt, client: this.uuid };
+      const broadcast: string = JSON.stringify({evt: '_broadcast_', data: dataPush})
+      if (this._socket !== null && !this._socket.CLOSED ) await this._socket.send(broadcast)
     }
   }
 
-  public async close(code: number = 1005, reason: string = ""): Promise<void> {
-    /* @ts-ignore */
-    if (this._socket !== null || !this._socket?.isClosed) {
+  public async close(code = 1005, reason = ""): Promise<void> {
+    if (this._socket !== null && !this._socket.CLOSED) {
       return await this._socket.close(code, reason);
     }
   }
 
   public async ping(data?: string) {
-    this?._socket?.send(JSON.stringify({ evt: '_ping_', data}))
+    await this?._socket?.send(JSON.stringify({ evt: '_ping_', data}))
   }
 
   // Client side handler
@@ -68,7 +65,7 @@ export default class Dropper extends EventEmitter {
     for await (const  { data: ev  } of websocketEvents(socket)) {
       try {
         if (hasJsonStructure(ev)) {
-          let { evt, data, client } = JSON.parse(ev);
+          const { evt, data, client } = JSON.parse(ev);
           /* @ts-ignore */
           if (!this?._socket?.isClosed) this._socket?.send(JSON.stringify({ evt: '_pong_', data}))
           if (evt !== '_ping_' && evt !== '_pong_') this.emit("_all_", ev);

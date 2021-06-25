@@ -1,12 +1,12 @@
-import { hasOwnProperty } from 'https://deno.land/std@0.83.0/_util/has_own_property.ts'
-export function hasJsonStructure (str: string): Boolean {
+import { hasOwnProperty } from 'https://deno.land/std@0.99.0/_util/has_own_property.ts'
+export function hasJsonStructure (str: string): boolean {
   if (typeof str !== 'string') return false;
   try {
       const result = JSON.parse(str);
       const type = Object.prototype.toString.call(result);
       return type === '[object Object]' 
           || type === '[object Array]';
-  } catch (err) {
+  } catch (_err) {
       return false;
   }
 }
@@ -17,7 +17,7 @@ export function isArray (str: string) {
       const result = JSON.parse(str);
       const type = Object.prototype.toString.call(result);
       return type === '[object Array]';
-  } catch (err) {
+  } catch (_err) {
       return false;
   }
 }
@@ -36,14 +36,14 @@ export function connectWebSocket(endpoint: string, id: string): Promise<WebSocke
     socket.onopen = () => {          
       resolve(socket);
     };
-    socket.onerror = (err:any) => {
+    socket.onerror = (err: Event | ErrorEvent) => {
       reject(err);
     };
   });
 }
 
 export function isWebSocketPongEvent(a: any) {
-  let newArr = typeof a === 'string' && isArray(a) ? JSON.parse(a).map( (e: string | object) => {
+  const newArr = typeof a === 'string' && isArray(a) ? JSON.parse(a).map( (e: string | object) => {
     if (typeof e !== "object") return e
     else return new Uint8Array(1)
   }) : a;
@@ -51,7 +51,7 @@ export function isWebSocketPongEvent(a: any) {
 }
 
 export function isWebSocketPingEvent(a: any) {
-  let newArr = typeof a === 'string' && isArray(a) ? JSON.parse(a).map( (e: string | object) => {
+  const newArr = typeof a === 'string' && isArray(a) ? JSON.parse(a).map( (e: string | object) => {
     if (typeof e !== "object") return e
     else return new Uint8Array(1)
   }) : a;
